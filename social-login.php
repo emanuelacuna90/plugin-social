@@ -66,16 +66,7 @@ function social_login_enqueue_scripts() {
 
 // Renderizar botones de login social
 function social_login_render_buttons() {
-    ?>
-    <div class="social-login-buttons">
-        <button class="social-login-button google-login" onclick="window.location.href='<?php echo esc_url(rest_url('social-login/v1/google/auth')); ?>'">
-            <?php esc_html_e('Iniciar sesión con Google', 'social-login-wc'); ?>
-        </button>
-        <button class="social-login-button apple-login" onclick="window.location.href='<?php echo esc_url(rest_url('social-login/v1/apple/auth')); ?>'">
-            <?php esc_html_e('Iniciar sesión con Apple', 'social-login-wc'); ?>
-        </button>
-    </div>
-    <?php
+    include SOCIAL_LOGIN_PLUGIN_DIR . 'templates/social-login-buttons.php';
 }
 add_action('woocommerce_login_form', 'social_login_render_buttons');
 add_action('woocommerce_register_form', 'social_login_render_buttons');
