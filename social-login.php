@@ -2,7 +2,7 @@
 /*
 Plugin Name: Social Login para WooCommerce
 Plugin URI: https://tusitio.com
-Description: Plugin de inicio de sesión social con Google y Apple ID para WooCommerce
+Description: Plugin para validación de tokens de Google y Apple ID para WooCommerce
 Version: 1.0
 Author: Emanuel
 Author URI: https://tusitio.com
@@ -17,7 +17,6 @@ if (!defined('ABSPATH')) {
 // Definir constantes del plugin
 define('SOCIAL_LOGIN_VERSION', '1.0.0');
 define('SOCIAL_LOGIN_PLUGIN_DIR', plugin_dir_path(__FILE__));
-define('SOCIAL_LOGIN_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 // Asegurarse de que WooCommerce está activo
 function social_login_check_woocommerce() {
@@ -52,25 +51,5 @@ add_action('plugins_loaded', 'social_login_check_woocommerce');
 function social_login_init() {
     // Cargar traducciones
     load_plugin_textdomain('social-login-wc', false, dirname(plugin_basename(__FILE__)) . '/languages');
-    
-    // Registrar scripts y estilos
-    add_action('wp_enqueue_scripts', 'social_login_enqueue_scripts');
 }
 add_action('init', 'social_login_init');
-
-// Registrar scripts y estilos
-function social_login_enqueue_scripts() {
-    wp_enqueue_style(
-        'social-login-styles',
-        SOCIAL_LOGIN_PLUGIN_URL . 'assets/css/social-login.css',
-        array(),
-        SOCIAL_LOGIN_VERSION
-    );
-}
-
-// Renderizar botones de login social
-function social_login_render_buttons() {
-    include SOCIAL_LOGIN_PLUGIN_DIR . 'templates/social-login-buttons.php';
-}
-add_action('woocommerce_login_form', 'social_login_render_buttons');
-add_action('woocommerce_register_form', 'social_login_render_buttons');
