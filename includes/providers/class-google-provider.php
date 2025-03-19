@@ -7,10 +7,20 @@
 
 class Google_Provider extends Auth_Provider {
     /**
+     * ID de cliente de Google
+     *
+     * @var string
+     */
+    private $client_id;
+
+    /**
      * Constructor
      */
     public function __construct() {
         parent::__construct('google');
+        
+        // Obtener credenciales de las opciones de WordPress
+        $this->client_id = get_option('social_login_google_client_id');
     }
 
     /**
@@ -44,6 +54,15 @@ class Google_Provider extends Auth_Provider {
             return new WP_Error(
                 'invalid_token',
                 'Token de Google inválido',
+                array('status' => 401)
+            );
+        }
+
+        // Verificar que el token fue emitido para nuestra aplicación
+        if ($data['aud'] !== $this->client_id) {
+            return new WP_Error(
+                'invalid_token',
+                'El token no fue emitido para esta aplicación',
                 array('status' => 401)
             );
         }

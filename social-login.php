@@ -37,10 +37,16 @@ function social_login_check_woocommerce() {
     require_once SOCIAL_LOGIN_PLUGIN_DIR . 'includes/providers/class-apple-provider.php';
     require_once SOCIAL_LOGIN_PLUGIN_DIR . 'includes/api/class-api-auth.php';
     require_once SOCIAL_LOGIN_PLUGIN_DIR . 'includes/api/class-api-customers.php';
+    require_once SOCIAL_LOGIN_PLUGIN_DIR . 'includes/admin/class-admin-settings.php';
 
     // Inicializar las clases
     $api_auth = new API_Auth();
     $api_customers = new API_Customers();
+    
+    // Inicializar la configuración del admin si estamos en el panel de administración
+    if (is_admin()) {
+        $admin_settings = new Social_Login_Admin_Settings();
+    }
 
     // Registrar endpoints
     add_action('rest_api_init', array($api_auth, 'register_routes'));
