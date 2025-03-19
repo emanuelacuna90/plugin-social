@@ -33,14 +33,18 @@ function social_login_check_woocommerce() {
     }
 
     // Cargar las clases del plugin
-    require_once SOCIAL_LOGIN_PLUGIN_DIR . 'includes/class-social-login-google.php';
-    require_once SOCIAL_LOGIN_PLUGIN_DIR . 'includes/class-social-login-apple.php';
-    require_once SOCIAL_LOGIN_PLUGIN_DIR . 'includes/class-social-login-user-meta.php';
+    require_once SOCIAL_LOGIN_PLUGIN_DIR . 'includes/providers/class-auth-provider.php';
+    require_once SOCIAL_LOGIN_PLUGIN_DIR . 'includes/providers/class-google-provider.php';
+    require_once SOCIAL_LOGIN_PLUGIN_DIR . 'includes/providers/class-apple-provider.php';
+    require_once SOCIAL_LOGIN_PLUGIN_DIR . 'includes/api/class-api-auth.php';
+    require_once SOCIAL_LOGIN_PLUGIN_DIR . 'includes/api/class-api-customers.php';
 
     // Inicializar las clases
-    new Social_Login_Google();
-    new Social_Login_Apple();
-    new Social_Login_User_Meta();
+    $api_auth = new API_Auth();
+    $api_customers = new API_Customers();
+
+    // Registrar endpoints
+    add_action('rest_api_init', array($api_auth, 'register_routes'));
 }
 add_action('plugins_loaded', 'social_login_check_woocommerce');
 
