@@ -18,7 +18,7 @@ class API_Auth {
                 'id' => array(
                     'required' => true,
                     'validate_callback' => function($param) {
-                        return is_numeric($param);
+                        return is_numeric($param) || $param === '0';
                     }
                 ),
                 'provider' => array(
@@ -45,37 +45,63 @@ class API_Auth {
         $provider = $request->get_param('provider');
         $token = $request->get_param('token');
 
-        // Verificar que el usuario existe
-        $user = get_user_by('id', $user_id);
-        if (!$user) {
-            return new WP_Error(
-                'user_not_found',
-                'Usuario no encontrado',
-                array('status' => 404)
-            );
-        }
+        // Si el ID es 0, significa que el usuario no está logueado
+        // y necesitamos buscar o crear el usuario basado en el token
+        if ($user_id === '0' || $user_id === 0) {
+            switch ($provider) {
+                case 'google':
+                    $result = $this->authenticate_or_create_google($token);
+                    break;
+                case 'apple':
+                    $result = $this->authenticate_or_create_apple($token);
+                    break;
+                default:
+                    return new WP_Error(
+                        'invalid_auth_method',
+                        'Método de autenticación no válido para usuarios no logueados',
+                        array('status' => 400)
+                    );
+            }
 
-        // Autenticar según el proveedor
-        switch ($provider) {
-            case 'password':
-                $result = $this->authenticate_password($user, $token);
-                break;
-            case 'google':
-                $result = $this->authenticate_google($user, $token);
-                break;
-            case 'apple':
-                $result = $this->authenticate_apple($user, $token);
-                break;
-            default:
+            if (is_wp_error($result)) {
+                return $result;
+            }
+
+            $user_id = $result['user_id'];
+            $user = get_user_by('id', $user_id);
+        } else {
+            // Verificar que el usuario existe
+            $user = get_user_by('id', $user_id);
+            if (!$user) {
                 return new WP_Error(
-                    'invalid_provider',
-                    'Proveedor de autenticación inválido',
-                    array('status' => 400)
+                    'user_not_found',
+                    'Usuario no encontrado',
+                    array('status' => 404)
                 );
-        }
+            }
 
-        if (is_wp_error($result)) {
-            return $result;
+            // Autenticar según el proveedor
+            switch ($provider) {
+                case 'password':
+                    $result = $this->authenticate_password($user, $token);
+                    break;
+                case 'google':
+                    $result = $this->authenticate_google($user, $token);
+                    break;
+                case 'apple':
+                    $result = $this->authenticate_apple($user, $token);
+                    break;
+                default:
+                    return new WP_Error(
+                        'invalid_provider',
+                        'Proveedor de autenticación inválido',
+                        array('status' => 400)
+                    );
+            }
+
+            if (is_wp_error($result)) {
+                return $result;
+            }
         }
 
         // Generar JWT
@@ -162,6 +188,116 @@ class API_Auth {
         }
 
         return true;
+    }
+
+    /**
+     * Autentica o crea un usuario usando Google
+     *
+     * @param string $token Token de Google.
+     * @return array|WP_Error Array con user_id si es exitoso, WP_Error si no.
+     */
+    private function authenticate_or_create_google($token) {
+        $provider = new Google_Provider();
+        $result = $provider->validate_token($token);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        // Buscar usuario por el ID de Google
+        $users = get_users(array(
+            'meta_key' => '_social_login_google_id',
+            'meta_value' => $result['provider_id'],
+            'number' => 1
+        ));
+
+        if (!empty($users)) {
+            return array('user_id' => $users[0]->ID);
+        }
+
+        // Si no existe, buscar por email
+        $existing_user = get_user_by('email', $result['email']);
+        if ($existing_user) {
+            // Vincular el ID de Google al usuario existente
+            update_user_meta($existing_user->ID, '_social_login_google_id', $result['provider_id']);
+            return array('user_id' => $existing_user->ID);
+        }
+
+        // Crear nuevo usuario
+        $username = sanitize_user($result['email']);
+        $user_data = array(
+            'user_login' => $username,
+            'user_email' => $result['email'],
+            'user_pass' => wp_generate_password(),
+            'first_name' => $result['given_name'],
+            'last_name' => $result['family_name'],
+            'display_name' => $result['name'],
+            'role' => 'customer'
+        );
+
+        $user_id = wp_insert_user($user_data);
+        if (is_wp_error($user_id)) {
+            return $user_id;
+        }
+
+        // Guardar el ID de Google
+        update_user_meta($user_id, '_social_login_google_id', $result['provider_id']);
+
+        return array('user_id' => $user_id);
+    }
+
+    /**
+     * Autentica o crea un usuario usando Apple
+     *
+     * @param string $token Token de Apple.
+     * @return array|WP_Error Array con user_id si es exitoso, WP_Error si no.
+     */
+    private function authenticate_or_create_apple($token) {
+        $provider = new Apple_Provider();
+        $result = $provider->validate_token($token);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        // Buscar usuario por el ID de Apple
+        $users = get_users(array(
+            'meta_key' => '_social_login_apple_id',
+            'meta_value' => $result['provider_id'],
+            'number' => 1
+        ));
+
+        if (!empty($users)) {
+            return array('user_id' => $users[0]->ID);
+        }
+
+        // Si no existe, buscar por email
+        $existing_user = get_user_by('email', $result['email']);
+        if ($existing_user) {
+            // Vincular el ID de Apple al usuario existente
+            update_user_meta($existing_user->ID, '_social_login_apple_id', $result['provider_id']);
+            return array('user_id' => $existing_user->ID);
+        }
+
+        // Crear nuevo usuario
+        $username = sanitize_user($result['email']);
+        $user_data = array(
+            'user_login' => $username,
+            'user_email' => $result['email'],
+            'user_pass' => wp_generate_password(),
+            'display_name' => $result['email'], // Apple no proporciona nombre
+            'role' => 'customer'
+        );
+
+        $user_id = wp_insert_user($user_data);
+        if (is_wp_error($user_id)) {
+            return $user_id;
+        }
+
+        // Guardar el ID de Apple
+        update_user_meta($user_id, '_social_login_apple_id', $result['provider_id']);
+
+        return array('user_id' => $user_id);
     }
 
     /**
